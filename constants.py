@@ -1,8 +1,7 @@
 
 
-class STATIC_TITLES:
+class TAX_CALCULATOR:
     app_version = 'v1.0.0'
-    page_title = 'Personal Expense Tracker'
 
     period_lkp = {
         "period_1": '1st (April-May-June)',
@@ -11,15 +10,18 @@ class STATIC_TITLES:
         "period_4": 'Annual (April)'
     }
 
-
-class STATIC_PATHS:
-    source_path = r"E:\Files\sample.xlsx"
-
-
-class STATIC_FORMATTING:
     table_formatting = {
             'Income': "₱ {:,.2f}",
             'Deductible': "₱ {:,.2f}",
             'Taxable': "₱ {:,.2f}",
             'Payable': "₱ {:,.2f}"
         }
+    
+class EXPENSE_TRACKER:
+    app_version = 'v1.0.0'
+    source_path = r"E:\Files\sample.xlsx"
+    sheet_name = 'income and expenses'
+
+class GENERAL_FORMATTING:
+    
+    peso_format = '&#8369;'
