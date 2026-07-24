@@ -1,18 +1,10 @@
 import streamlit as st
 
+from tax_calculator.tax import main as tax_main
 
 st.set_page_config(
-        page_title='Personal Project',
-        page_icon='favicon'
-    )
+    page_title='Simple Tax Calculator',
+    page_icon='favicon'
+)
 
-applications = {
-    'Personal Expense Tracker': 'expense\\expense.py',
-    'Simple Tax Calculator': 'tax_calculator\\tax.py'
-}
-
-# Dropdown menu to select the application
-selected_app = st.selectbox('Select Application', list(applications.keys()))
-
-# Import and run the selected application
-exec(open(applications[selected_app]).read())
+tax_main()

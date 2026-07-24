@@ -2,11 +2,22 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-from constants import TAX_CALCULATOR, GENERAL_FORMATTING
-from utility import call_coloredtext, call_subheader
+from constants import TAX_CALCULATOR
+from utility import (
+    inject_theme,
+    render_masthead,
+    render_about,
+    section_label,
+    render_hint,
+    render_summary,
+)
+
+PERIOD_KEYS = ["period_1", "period_2", "period_3", "period_4"]
+
 
 def period_lookup(x):
     return TAX_CALCULATOR.period_lkp[x]
+
 
 def tax_table_generator(gdict):
     df = pd.DataFrame(gdict.items(), columns=['Period', 'Income'])
@@ -33,7 +44,7 @@ def tax_table_generator(gdict):
     df["Taxable"] = np.where(
         df["Taxable"] <= 0,
         0,
-        df["Taxable"] 
+        df["Taxable"]
     )
 
     df["Payable"] = np.where(
@@ -59,42 +70,74 @@ def tax_table_generator(gdict):
     )
 
     df["Period"] = df["Period"].apply(period_lookup)
-    
+
     return df
 
+
+def _seed_income():
+    """Return the starting Income per quarter, held in session state so edits
+    persist across reruns."""
+    if "income_by_period" not in st.session_state:
+        st.session_state["income_by_period"] = {k: 0 for k in PERIOD_KEYS}
+    return st.session_state["income_by_period"]
+
+
 def main():
+    inject_theme()
+    render_masthead(TAX_CALCULATOR.app_version)
 
-    # Variables
-    gross_dict = dict()
-    
-    with st.container(border=True):
-        call_subheader("Tax Table Calculator (8% Tax rate option)")
+    income = _seed_income()
 
-        for i in range(0, 4):
-            period_txt = TAX_CALCULATOR.period_lkp[f"period_{i + 1}"]
-            gross_input = st.number_input(f"Input Gross for {period_txt} period", min_value=0, step=10000, key=f"ginput_{i}")
+    # Compute the full table from the income held in session state.
+    gross_dict = {k: income[k] for k in PERIOD_KEYS}
+    df = tax_table_generator(gross_dict)
 
-            gross_dict[f"period_{i+1}"] = gross_input
+    render_about()
 
-        df = tax_table_generator(gross_dict)
+    # Single grid: Income is the only editable column; the computed columns
+    # (Deductible / Taxable / Payable) are locked and repaint on each edit.
+    section_label("Tax Ledger — enter income per quarter")
+    render_hint(
+        "Enter your gross income in the Income column for each quarter. "
+        "The Deductible, Taxable, and Payable columns update automatically."
+    )
 
-        formatted_df = df.style.format(TAX_CALCULATOR.table_formatting)
-        
-        # Display Generated Tax Table
-        call_subheader("Generated Tax Table",header='h4')
-        st.table(formatted_df)
+    edited = st.data_editor(
+        df[["Period", "Income", "Deductible", "Taxable", "Payable"]],
+        hide_index=True,
+        use_container_width=True,
+        column_config={
+            "Period": st.column_config.TextColumn("Period", disabled=True),
+            "Income": st.column_config.NumberColumn(
+                "Income",
+                help="Editable — type your gross income for each quarter.",
+                min_value=0,
+                step=10000,
+                format="₱ %,.2f",
+            ),
+            "Deductible": st.column_config.NumberColumn(
+                "Deductible", format="₱ %,.2f", disabled=True
+            ),
+            "Taxable": st.column_config.NumberColumn(
+                "Taxable", format="₱ %,.2f", disabled=True
+            ),
+            "Payable": st.column_config.NumberColumn(
+                "Payable", format="₱ %,.2f", disabled=True
+            ),
+        },
+        key="tax_editor",
+    )
 
-        total_payable = df["Payable"].sum()
-        monthly_payable = total_payable / 12
+    # Persist edited income; a change triggers a rerun that recomputes above.
+    edited_income = [0 if pd.isna(v) else int(v) for v in edited["Income"]]
+    new_income = dict(zip(PERIOD_KEYS, edited_income))
+    if new_income != st.session_state["income_by_period"]:
+        st.session_state["income_by_period"] = new_income
+        st.rerun()
 
-        tp_formatted = f"{GENERAL_FORMATTING.peso_format} {total_payable:,.2f}"
-        mp_formatted = f"{GENERAL_FORMATTING.peso_format} {monthly_payable:,.2f}"
-
-        call_coloredtext(f"Your Total Tax Payable :", tp_formatted, dynamic_color="Red", dynamic_font_size='24px')
-
-        call_coloredtext(f"Your Monthly Tax Payable :", mp_formatted, dynamic_color="Red", dynamic_font_size='24px')
-        
-
+    total_payable = df["Payable"].sum()
+    monthly_payable = total_payable / 12
+    render_summary(total_payable, monthly_payable)
 
 
 if __name__ == "__main__":
